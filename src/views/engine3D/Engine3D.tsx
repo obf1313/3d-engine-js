@@ -18,6 +18,7 @@ import '@static/js/jsm/postprocessing/OutlinePass.js';
 import '@static/js/jsm/postprocessing/RenderPass.js';
 import '@static/js/jsm/postprocessing/ShaderPass.js';
 import { modelType } from '@utils/CommonVars';
+import { ViewPanel, useViewPanel } from '@components/index';
 
 interface Model {
   sourceUrl: string,
@@ -29,6 +30,11 @@ interface MixerAction {
   action: any
 }
 
+interface MaterialData {
+  name: string,
+  material: any
+}
+
 let container: any;
 let controls: any;
 let camera: any;
@@ -36,11 +42,14 @@ let scene: any;
 let renderer: any;
 let labelRenderer: any;
 const clock = new THREE.Clock();
+// todo 高亮模型
+// let composer: any;
 
 const Engine3D = () => {
+  const { panelTop, panelLeft, display, viewChildren, setViewPanel, hiddenViewPanel } = useViewPanel();
   const [modelList, setModelList] = useState<Array<Model>>([]);
-  const [inputObjList, setInputObjList] = useState<Array<any>>([]);
   const [mixerActionList, setMixerActionList] = useState<Array<MixerAction>>([]);
+  const [materialList, setMaterialList] = useState<Array<MaterialData>>([]);
   const [initSceneDone, setInitSceneDone] = useState<boolean>(false);
   useEffect(() => {
     getModelList();
@@ -66,7 +75,7 @@ const Engine3D = () => {
     camera.position.set(0, 4500, 4500);
     // 场景
     scene = new THREE.Scene();
-    scene.background = new THREE.Color('#ddd');
+    scene.background = new THREE.Color('#050404');
     // 光源
     const light1 = new THREE.HemisphereLight(0xffffff, 0x444444);
     light1.position.set(0, 200, 0);
@@ -86,7 +95,6 @@ const Engine3D = () => {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight - 6);
     container.appendChild(renderer.domElement);
-    console.log('init-renderer', renderer.toString());
     // 2D 渲染器
     labelRenderer = new CSS2DRenderer();
     labelRenderer.setSize(window.innerWidth, window.innerHeight - 6);
@@ -134,6 +142,7 @@ const Engine3D = () => {
   const initStaticModel = (src: string) => {
     const loader = new FBXLoader();
     loader.load(src, (object: any) => {
+      dealMeshMaterial(object.children);
       object.traverse((child: any) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -147,6 +156,7 @@ const Engine3D = () => {
   const initAnimationModel = (src: string, isPlay = true) => {
     const loader = new FBXLoader();
     loader.load(src, (object: any) => {
+      dealMeshMaterial(object.children);
       const mixer = new THREE.AnimationMixer(object);
       const action = mixer.clipAction(object.animations[0]);
       mixerActionList.push({
@@ -176,10 +186,9 @@ const Engine3D = () => {
       const selectObject = intersects[0].object;
       onSelectObject(selectObject, event);
     } else {
-      // 未点击时清除
-      for (let i = 0; i < inputObjList.length; i++) {
-        scene.remove(inputObjList[i]);
-      }
+      // 隐藏面板
+      hiddenViewPanel();
+      // 清空所有高亮材质 todo
     }
   };
   // 获取与射线相交的对象数组
@@ -206,23 +215,40 @@ const Engine3D = () => {
   };
   // 选中某个对象
   const onSelectObject = (selectObject: any, event: MouseEvent) => {
-    // todo 发光没生效，气死我了
-    // 特效组件
-    const composer = new THREE.EffectComposer(renderer);
-    const renderPass = new THREE.RenderPass(scene, camera);
-    // 特效渲染
-    composer.addPass(renderPass);
-    const outlinePass = new THREE.OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
-    // 加入高光特效
-    composer.addPass(outlinePass);
-    outlinePass.pulsePeriod = 2; // 数值越大，律动越慢
-    outlinePass.visibleEdgeColor.set(0xff0000); // 高光颜色
-    outlinePass.hiddenEdgeColor.set(0x000000);// 阴影颜色
-    outlinePass.usePatternTexture = false; // 使用纹理覆盖？
-    outlinePass.edgeStrength = 5; // 高光边缘强度
-    outlinePass.edgeGlow = 1; // 边缘微光强度
-    outlinePass.edgeThickness = 1; // 高光厚度
-    outlinePass.selectedObjects = [selectObject]; // 需要高光的obj
+    // // 1. 发光
+    // // 特效组件
+    // composer = new THREE.EffectComposer(renderer);
+    // const renderPass = new THREE.RenderPass(scene, camera);
+    // // 特效渲染
+    // composer.addPass(renderPass);
+    // const outlinePass = new THREE.OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
+    // // 加入高光特效
+    // composer.addPass(outlinePass);
+    // outlinePass.pulsePeriod = 2; // 数值越大，律动越慢
+    // outlinePass.visibleEdgeColor.set(0xff0000); // 高光颜色
+    // outlinePass.hiddenEdgeColor.set(0x000000);// 阴影颜色
+    // outlinePass.usePatternTexture = false; // 使用纹理覆盖？
+    // outlinePass.edgeStrength = 5; // 高光边缘强度
+    // outlinePass.edgeGlow = 1; // 边缘微光强度
+    // outlinePass.edgeThickness = 1; // 高光厚度
+    // outlinePass.selectedObjects = [selectObject]; // 需要高光的obj
+    // 2. 高亮模型（不知道是不是白膜的原因，不会高亮，而是变成这个颜色）
+    let oldOneMaterial = materialList.filter(item => item.name === selectObject.name)[0];
+    selectObject.material = new THREE.MeshPhongMaterial({
+      color: 0x00ff00,
+      map: oldOneMaterial.material.map
+    });
+    // 显示面板
+    setViewPanel(event.clientY, event.clientX, (
+      <div>
+        <p>棕化线</p>
+        <div>硫酸钠：500L/S</div>
+        <div>硫酸钠：500L/S</div>
+        <div>硫酸钠：500L/S</div>
+        <div>硫酸钠：500L/S</div>
+        <div>硫酸钠：500L/S</div>
+      </div>
+    ));
   };
   // 动画
   const animate = () => {
@@ -233,9 +259,26 @@ const Engine3D = () => {
     }
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
+    // todo 高亮模型
+    // // 会导致模型锯齿状，需改进
+    // if(composer){
+    //   composer.render();
+    // }
+  };
+  // 保留模型材质
+  const dealMeshMaterial = (arrList: Array<any>) => {
+    for (let i = 0; i < arrList.length; i++) {
+      materialList.push({
+        name: arrList[i].name,
+        material: arrList[i].material
+      });
+    }
+    setMaterialList([...materialList]);
   };
   return (
-    <div id="container" />
+    <div id="container">
+      <ViewPanel top={panelTop} left={panelLeft} viewChildren={viewChildren} display={display} />
+    </div>
   );
 };
 export default Engine3D;
