@@ -44,6 +44,7 @@ let labelRenderer: any;
 const clock = new THREE.Clock();
 // todo 高亮模型
 // let composer: any;
+let selectObjectList: Array<any> = [];
 
 const Engine3D = () => {
   const { panelTop, panelLeft, display, viewChildren, setViewPanel, hiddenViewPanel } = useViewPanel();
@@ -181,14 +182,16 @@ const Engine3D = () => {
   const onMouseClick = (event: MouseEvent) => {
     // 获取 raycaster 和所有模型相交的数组，其中的元素按照距离排序，越近的越靠前
     const intersects = getIntersects(event);
+    // 清空所有高亮材质
+    resetMaterial();
     // 获取选中最近的 Mesh 对象
     if (intersects.length !== 0 && intersects[0].object instanceof THREE.Mesh) {
       const selectObject = intersects[0].object;
+      selectObjectList.push(selectObject);
       onSelectObject(selectObject, event);
     } else {
       // 隐藏面板
       hiddenViewPanel();
-      // 清空所有高亮材质 todo
     }
   };
   // 获取与射线相交的对象数组
@@ -214,7 +217,7 @@ const Engine3D = () => {
     return raycaster.intersectObjects(scensObjs);
   };
   // 选中某个对象
-  const onSelectObject = (selectObject: any, event: MouseEvent) => {
+  const onSelectObject = (tempSelectObject: any, event: MouseEvent) => {
     // // 1. 发光
     // // 特效组件
     // composer = new THREE.EffectComposer(renderer);
@@ -231,24 +234,30 @@ const Engine3D = () => {
     // outlinePass.edgeStrength = 5; // 高光边缘强度
     // outlinePass.edgeGlow = 1; // 边缘微光强度
     // outlinePass.edgeThickness = 1; // 高光厚度
-    // outlinePass.selectedObjects = [selectObject]; // 需要高光的obj
+    // outlinePass.selectedObjects = [tempSelectObject]; // 需要高光的obj
     // 2. 高亮模型（不知道是不是白膜的原因，不会高亮，而是变成这个颜色）
-    let oldOneMaterial = materialList.filter(item => item.name === selectObject.name)[0];
-    selectObject.material = new THREE.MeshPhongMaterial({
-      color: 0x00ff00,
+    let oldOneMaterial = materialList.filter(item => item.name === tempSelectObject.name)[0];
+    tempSelectObject.material = new THREE.MeshPhongMaterial({
+      color: 0xff0000,
       map: oldOneMaterial.material.map
     });
-    // 显示面板
-    setViewPanel(event.clientY, event.clientX, (
-      <div>
-        <p>棕化线</p>
-        <div>硫酸钠：500L/S</div>
-        <div>硫酸钠：500L/S</div>
-        <div>硫酸钠：500L/S</div>
-        <div>硫酸钠：500L/S</div>
-        <div>硫酸钠：500L/S</div>
-      </div>
-    ));
+    // 两种情况，点击生产线看生产线数据
+    if (tempSelectObject.name === '生产线') {
+      // 显示面板
+      getComponentData(event, '测试', 'line');
+    }
+    // 点击管道看管道数据
+    else {
+      // 显示面板
+      getComponentData(event, '测试', 'piping');
+    }
+  };
+  // 重置材质
+  const resetMaterial = ()=> {
+    for (let i = 0; i < selectObjectList.length; i++) {
+      selectObjectList[i].material = materialList.filter(item => item.name === selectObjectList[i].name)[0].material;
+    }
+    selectObjectList = [];
   };
   // 动画
   const animate = () => {
@@ -274,6 +283,19 @@ const Engine3D = () => {
       });
     }
     setMaterialList([...materialList]);
+  };
+  // 点击构件获取数据，区分不同类型，
+  const getComponentData = (event: MouseEvent, name: string, type: string) => {
+    setViewPanel(event.clientY, event.clientX, (
+      <div>
+        <p>棕化线</p>
+        <div>硫酸钠：500L/S</div>
+        <div>硫酸钠：500L/S</div>
+        <div>硫酸钠：500L/S</div>
+        <div>硫酸钠：500L/S</div>
+        <div>硫酸钠：500L/S</div>
+      </div>
+    ));
   };
   return (
     <div id="container">
