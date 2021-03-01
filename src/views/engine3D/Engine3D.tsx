@@ -18,7 +18,7 @@ import '@static/js/jsm/postprocessing/OutlinePass.js';
 import '@static/js/jsm/postprocessing/RenderPass.js';
 import '@static/js/jsm/postprocessing/ShaderPass.js';
 import { modelType } from '@utils/CommonVars';
-import { ViewPanel, useViewPanel } from '@components/index';
+import { ViewPanel, useViewPanel, DosageUsePanel, DosagePredictPanel, WarningPanel } from '@components/index';
 
 interface Model {
   sourceUrl: string,
@@ -89,7 +89,7 @@ const Engine3D = () => {
     light2.shadow.camera.left = -120;
     light2.shadow.camera.right = 120;
     scene.add(light2);
-    // 加载模型
+    // 加载模型 todo
     initModelList();
     // 渲染器
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -124,18 +124,22 @@ const Engine3D = () => {
   };
   // 获取模型列表
   const getModelList = () => {
+    // const modelList: Array<Model> = [{
+    //   sourceUrl: '/modelStatic/models/fixed.fbx',
+    //   type: modelType.static
+    // }, {
+    //   sourceUrl: '/modelStatic/models/gd1.fbx',
+    //   type: modelType.animation
+    // }, {
+    //   sourceUrl: '/modelStatic/models/gd2.fbx',
+    //   type: modelType.animation
+    // }, {
+    //   sourceUrl: '/modelStatic/models/gd3.fbx',
+    //   type: modelType.animation
+    // }];
     const modelList: Array<Model> = [{
-      sourceUrl: '/modelStatic/models/fixed.fbx',
+      sourceUrl: '/modelStatic/models/Test.fbx',
       type: modelType.static
-    }, {
-      sourceUrl: '/modelStatic/models/gd1.fbx',
-      type: modelType.animation
-    }, {
-      sourceUrl: '/modelStatic/models/gd2.fbx',
-      type: modelType.animation
-    }, {
-      sourceUrl: '/modelStatic/models/gd3.fbx',
-      type: modelType.animation
     }];
     setModelList(modelList);
   };
@@ -144,6 +148,14 @@ const Engine3D = () => {
     const loader = new FBXLoader();
     loader.load(src, (object: any) => {
       dealMeshMaterial(object.children);
+      console.log('object', object);
+      object.children.forEach((item: any) => {
+        item.material = new THREE.MeshBasicMaterial({
+          color: '#'+ Math.random().toString(16).substr(2,6),
+          transparent: true,
+          opacity: 0.8,
+        });
+      });
       object.traverse((child: any) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -299,6 +311,9 @@ const Engine3D = () => {
   };
   return (
     <div id="container">
+      <DosageUsePanel />
+      <DosagePredictPanel />
+      <WarningPanel />
       <ViewPanel top={panelTop} left={panelLeft} viewChildren={viewChildren} display={display} />
     </div>
   );
